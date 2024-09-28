@@ -15,22 +15,19 @@ impl Editor {
         loop {
             match read() {
                 Ok(Key(event)) => {
-                    write!(&mut out, "{:?}\r\n", event)?;
-                    match event.code {
-                        Char(c) => {
-                            if c == 'q' {
-                                break;
-                            }
+                    write!(&mut out, "{event:?}\r\n")?;
+                    if let Char(c) = event.code {
+                        if c == 'q' {
+                            break;
                         }
-                        _ => (),
                     }
                 }
-                Err(e) => write!(&mut out, "Err: {:?}\r\n", e)?,
+                Err(e) => write!(&mut out, "Err: {e:?}\r\n")?,
                 _ => (),
             }
         }
 
         disable_raw_mode()?;
-        return Ok(());
+        Ok(())
     }
 }
