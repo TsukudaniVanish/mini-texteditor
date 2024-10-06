@@ -1,7 +1,8 @@
 use crossterm::cursor::MoveTo;
 use crossterm::event::{read, Event, Event::Key, KeyCode::Char, KeyEvent, KeyModifiers};
 use crossterm::execute;
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType, size};
+use crossterm::style::Print;
 use std::io::{self, Result, Write};
 
 pub struct Editor {
@@ -23,7 +24,8 @@ impl Editor {
 
     fn initialize<O: Write>(&self, out: &mut O) -> Result<()> {
         enable_raw_mode()?;
-        Self::clear_screen(out)
+        Self::clear_screen(out)?;
+        Self::draw_rows(out)
     }
 
     fn terminate() -> Result<()> {
@@ -67,6 +69,16 @@ impl Editor {
             Self::clear_screen(out)?;
             write!(out, "Goodbye. \r\n")?;
         }
+        Ok(())
+    }
+
+    /// draw_rows draws ~ every rows.
+    fn draw_rows<O: Write>(out: &mut O) -> Result<()> {
+        let (_, rows) = size()?;
+        for row in 0..rows {
+            execute!(out, MoveTo(0, row),Print("~"))?;
+        }
+        execute!(out, MoveTo(1, 0))?;
         Ok(())
     }
 }
