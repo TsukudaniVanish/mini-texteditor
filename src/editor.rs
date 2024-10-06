@@ -1,19 +1,24 @@
-use crossterm::cursor::MoveTo;
+use crate::cursor::{Cursor, TerminalCursor};
 use crossterm::event::{read, Event, Event::Key, KeyCode::Char, KeyEvent, KeyModifiers};
 use crossterm::execute;
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType, size};
-use crossterm::style::Print;
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode, size, Clear, ClearType};
 use std::io::{self, Result, Write};
 
-pub struct Editor {
+pub struct Editor<C: Cursor> {
+    cur: C,
     shuld_quit: bool,
 }
 
-impl Editor {
+impl Editor<TerminalCursor> {
     pub fn new() -> Self {
-        Self { shuld_quit: false }
+        Self {
+            cur: TerminalCursor::new(),
+            shuld_quit: false,
+        }
     }
+}
 
+impl<C: Cursor> Editor<C> {
     pub fn run(&mut self) -> Result<()> {
         let mut out = io::stdout();
         self.initialize(&mut out)?;
@@ -24,17 +29,17 @@ impl Editor {
 
     fn initialize<O: Write>(&self, out: &mut O) -> Result<()> {
         enable_raw_mode()?;
-        Self::clear_screen(out)?;
-        Self::draw_rows(out)
+        self.clear_screen(out)?;
+        self.draw_rows(out)
     }
 
     fn terminate() -> Result<()> {
         disable_raw_mode()
     }
 
-    fn clear_screen<O: Write>(out: &mut O) -> Result<()> {
+    fn clear_screen<O: Write>(&self, out: &mut O) -> Result<()> {
         execute!(out, Clear(ClearType::All))?;
-        execute!(out, MoveTo(0, 0))
+        self.move_to(out, 0, 0)
     }
 
     fn repl<O: Write>(&mut self, out: &mut O) -> Result<()> {
@@ -66,19 +71,39 @@ impl Editor {
 
     fn referesh_screen<O: Write>(&self, out: &mut O) -> Result<()> {
         if self.shuld_quit {
-            Self::clear_screen(out)?;
+            self.clear_screen(out)?;
             write!(out, "Goodbye. \r\n")?;
         }
         Ok(())
     }
 
     /// draw_rows draws ~ every rows.
-    fn draw_rows<O: Write>(out: &mut O) -> Result<()> {
+    fn draw_rows<O: Write>(&self, out: &mut O) -> Result<()> {
         let (_, rows) = size()?;
         for row in 0..rows {
-            execute!(out, MoveTo(0, row),Print("~"))?;
+            self.move_to(out, 0, row)?;
+            self.print(out, "~")?;
         }
-        execute!(out, MoveTo(1, 0))?;
+        self.move_to(out, 1, 0)?;
         Ok(())
+    }
+}
+
+impl<C: Cursor> Cursor for Editor<C> {
+    fn move_to<O: Write>(
+        self: &Self,
+        out: &mut O,
+        col: u16,
+        row: u16,
+    ) -> std::result::Result<(), io::Error> {
+        self.cur.move_to(out, col, row)
+    }
+
+    fn print<O: Write, T: std::fmt::Display>(
+        self: &Self,
+        out: &mut O,
+        content: T,
+    ) -> std::result::Result<(), io::Error> {
+        self.cur.print(out, content)
     }
 }
